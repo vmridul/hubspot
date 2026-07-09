@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Search, Table2 } from "lucide-react";
+import { ExternalLink, LoaderCircle, Search, Table2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +52,7 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [freshlyConnected, setFreshlyConnected] = useState(false);
 
   async function load(searchValue = debouncedSearch) {
     try {
@@ -66,6 +67,9 @@ export default function Home() {
 
       const contactData = await api.contacts(1, 25, searchValue);
       setContacts(contactData);
+      if (contactData.total > 0) {
+        setFreshlyConnected(false);
+      }
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -83,13 +87,28 @@ export default function Home() {
   }, [search]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("connected") !== "true") {
+      return;
+    }
+
+    setFreshlyConnected(true);
+    params.delete("connected");
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${query ? `?${query}` : ""}`,
+    );
+  }, []);
+
+  useEffect(() => {
     setLoading(true);
     load(debouncedSearch);
-    const timer = window.setInterval(() => load(debouncedSearch), 20000);
-    return () => window.clearInterval(timer);
   }, [debouncedSearch]);
 
   const hasContacts = Boolean(contacts?.items.length);
+  const showSyncingContacts = freshlyConnected && !loading && !hasContacts;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-3 px-3 py-3 md:px-4">
@@ -236,7 +255,14 @@ export default function Home() {
                     colSpan={5}
                     className="px-4 py-0 text-center text-sm text-muted-foreground"
                   >
-                    No contacts found
+                    {showSyncingContacts ? (
+                      <span className="inline-flex items-center gap-2">
+                        <LoaderCircle className="size-4 animate-spin" />
+                        Syncing contacts
+                      </span>
+                    ) : (
+                      "No contacts found"
+                    )}
                   </TableCell>
                 </TableRow>
               )}
