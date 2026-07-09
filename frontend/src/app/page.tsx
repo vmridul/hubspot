@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, LoaderCircle, Search, Table2 } from "lucide-react";
+import useSWR from "swr";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  api,
-  type Contact,
-  type ContactPage,
-  type HubspotStatus,
-} from "@/lib/api";
+import { api, type Contact, type ContactPage, type HubspotStatus } from "@/lib/api";
 
 function getContactName(contact: Contact) {
   return (
@@ -46,40 +42,32 @@ const emptyContacts: ContactPage = {
 };
 
 export default function Home() {
-  const [hubspot, setHubspot] = useState<HubspotStatus | null>(null);
-  const [contacts, setContacts] = useState<ContactPage | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [loading, setLoading] = useState(true);
   const [freshlyConnected, setFreshlyConnected] = useState(false);
 
-  async function load(searchValue = debouncedSearch) {
-    try {
-      setError(null);
-      const hubspotData = await api.hubspotStatus();
-      setHubspot(hubspotData);
+  const {
+    data: hubspot,
+    error: hubspotError,
+    isLoading: hubspotLoading,
+    mutate: refreshHubspot,
+  } = useSWR<HubspotStatus>("/api/hubspot", api.hubspotStatus);
 
-      if (!hubspotData.connected) {
-        setContacts(emptyContacts);
-        return;
-      }
+  const contactsKey = hubspot?.connected
+    ? `/api/contacts?page=1&limit=25&q=${debouncedSearch}`
+    : null;
+  const {
+    data: contactData,
+    error: contactsError,
+    isLoading: contactsLoading,
+    mutate: refreshContacts,
+  } = useSWR<ContactPage>(contactsKey, () =>
+    api.contacts(1, 25, debouncedSearch),
+  );
 
-      const contactData = await api.contacts(1, 25, searchValue);
-      setContacts(contactData);
-      if (contactData.total > 0) {
-        setFreshlyConnected(false);
-      }
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Unable to load dashboard",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+  const contacts = hubspot?.connected ? contactData : emptyContacts;
+  const loading = hubspotLoading || Boolean(hubspot?.connected && contactsLoading);
+  const error = hubspotError ?? contactsError;
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
@@ -103,9 +91,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    load(debouncedSearch);
-  }, [debouncedSearch]);
+    if (contactData?.total) {
+      setFreshlyConnected(false);
+    }
+  }, [contactData?.total]);
 
   const hasContacts = Boolean(contacts?.items.length);
   const showSyncingContacts = freshlyConnected && !loading && !hasContacts;
@@ -129,7 +118,10 @@ export default function Home() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => load()}
+              onClick={() => {
+                refreshHubspot();
+                refreshContacts();
+              }}
               className="h-10 w-44"
             >
               Connected
@@ -170,7 +162,9 @@ export default function Home() {
       {error ? (
         <Alert>
           <AlertTitle>Unable to load data</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {error instanceof Error ? error.message : "Unable to load dashboard"}
+          </AlertDescription>
         </Alert>
       ) : null}
 
