@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Send } from "lucide-react";
+import useSWR from "swr";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -21,7 +22,7 @@ function readablePropertyName(key: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function getHubspotProperties(contact: Contact | null) {
+function getHubspotProperties(contact: Contact | null | undefined) {
   if (!contact?.rawProperties || typeof contact.rawProperties !== "object") {
     return [];
   }
@@ -33,35 +34,35 @@ function getHubspotProperties(contact: Contact | null) {
 
 export default function ContactDetail({ params }: PageProps) {
   const [contactId, setContactId] = useState<string | null>(null);
-  const [contact, setContact] = useState<Contact | null>(null);
-  const [notes, setNotes] = useState<Note[]>([]);
   const [body, setBody] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     params.then((resolved) => setContactId(resolved.id));
   }, [params]);
 
-  async function load(id = contactId) {
-    if (!id) return;
-    try {
-      setError(null);
-      const [contactData, noteData] = await Promise.all([api.contact(id), api.notes(id)]);
-      setContact(contactData);
-      setNotes(noteData);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Unable to load contact");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const {
+    data: contact,
+    error: contactError,
+    isLoading: contactLoading,
+  } = useSWR<Contact>(
+    contactId ? `/api/contacts/${contactId}` : null,
+    () => api.contact(contactId!),
+  );
 
-  useEffect(() => {
-    if (!contactId) return;
-    load(contactId);
-  }, [contactId]);
+  const {
+    data: notes = [],
+    error: notesError,
+    isLoading: notesLoading,
+    mutate: refreshNotes,
+  } = useSWR<Note[]>(
+    contactId ? `/api/notes?contactId=${contactId}` : null,
+    () => api.notes(contactId!),
+  );
+
+  const error = submitError ?? contactError ?? notesError;
+  const loading = contactLoading || notesLoading;
 
   async function submitNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,12 +71,12 @@ export default function ContactDetail({ params }: PageProps) {
 
     try {
       setSubmitting(true);
-      setError(null);
+      setSubmitError(null);
       const note = await api.createNote(contactId, trimmed);
-      setNotes((current) => [note, ...current]);
+      await refreshNotes([note, ...notes], { revalidate: false });
       setBody("");
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to add note");
+      setSubmitError(submitError instanceof Error ? submitError.message : "Unable to add note");
     } finally {
       setSubmitting(false);
     }
@@ -118,7 +119,9 @@ export default function ContactDetail({ params }: PageProps) {
       {error ? (
         <Alert>
           <AlertTitle>Something went wrong</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>
+            {error instanceof Error ? error.message : error}
+          </AlertDescription>
         </Alert>
       ) : null}
 
