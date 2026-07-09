@@ -8,7 +8,7 @@
     "auth": {
       "type": "oauth",
       "redirectUrls": [
-        "http://localhost:4000/api/hubspot/oauth/callback"
+        "https://hubspot-aw6a.onrender.com/api/hubspot/oauth/callback"
       ],
       "requiredScopes": [
         "oauth",

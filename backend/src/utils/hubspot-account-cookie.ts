@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 
 const cookieName = "hubspotAccountId";
+const isProduction = process.env.NODE_ENV === "production";
 
 export function getHubspotAccountId(req: Request) {
   const cookies = req.headers.cookie?.split("; ") ?? [];
@@ -19,7 +20,8 @@ export function getHubspotAccountId(req: Request) {
 export function setHubspotAccountId(res: Response, accountId: string) {
   res.cookie(cookieName, accountId, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 }
