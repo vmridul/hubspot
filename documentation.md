@@ -16,6 +16,57 @@ Next.js frontend -> Express API -> PostgreSQL
 
 The frontend talks only to the backend. The backend stores data in Postgres and uses background jobs for longer HubSpot work.
 
+## Backend APIs
+
+```txt
+GET /api/hubspot
+```
+
+Checks whether the current browser session is connected to HubSpot.
+
+```txt
+GET /api/hubspot/connect
+```
+
+Starts HubSpot OAuth by redirecting the user to HubSpot.
+
+```txt
+GET /api/hubspot/oauth/callback?code=...&state=...
+```
+
+Handles the HubSpot OAuth redirect, exchanges the code for tokens, stores the connected account, queues contact sync, and redirects back to the frontend.
+
+```txt
+GET /api/contacts?page=1&limit=25&q=search
+```
+
+Returns paginated contacts for the connected HubSpot account. Search checks basic contact fields such as name, email, and company.
+
+```txt
+GET /api/contacts/:id
+```
+
+Returns one contact by local contact ID.
+
+```txt
+GET /api/notes?contactId=...
+```
+
+Returns notes for one contact.
+
+```txt
+POST /api/notes
+```
+
+Creates a local note and queues it to sync back to HubSpot. Body:
+
+```json
+{
+  "contactId": "local-contact-id",
+  "body": "Note text"
+}
+```
+
 ## OAuth Implementation
 
 The user clicks "Connect HubSpot" and the backend redirects them to HubSpot OAuth.
@@ -44,7 +95,7 @@ OAuth callback
 -> queue sync-contacts job
 -> fetch HubSpot contacts page by page
 -> upsert contacts into Postgres
--> import HubSpot notes for each contact
+-> queue note import jobs for each contact
 -> save sync cursor
 ```
 
@@ -56,7 +107,8 @@ pg-boss runs background jobs using Postgres as the queue.
 
 Current jobs:
 
-- `sync-contacts`: pulls contacts and existing notes from HubSpot
+- `sync-contacts`: pulls contacts from HubSpot and saves them locally
+- `sync-contact-notes`: imports existing HubSpot notes for one contact
 - `sync-note`: sends a newly created local note back to HubSpot
 
 This keeps slow external API work out of normal web requests.
@@ -93,6 +145,6 @@ The app is small, but the shape can grow:
 
 - The backend and worker run in one process to keep deployment simple.
 - Postgres is used for both app data and the job queue to avoid extra infrastructure.
-- The frontend polls the backend every few seconds, but the backend does not currently poll HubSpot on a schedule.
+- The frontend uses SWR for simple request caching, but it does not poll.
 - The app stores selected contact fields for the table and keeps raw HubSpot properties for detail views.
 - The demo assumes one connected HubSpot account instead of building a full user system.
