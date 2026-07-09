@@ -1,5 +1,5 @@
 import { prisma } from "../db/prisma.js";
-import { boss } from "./boss.js";
+import { boss, enqueueContactNotesSync } from "./boss.js";
 import {
   createHubspotNote,
   fetchContactNotes,
@@ -15,9 +15,23 @@ type NoteSyncJob = {
   noteId: string;
 };
 
+type ContactNotesSyncJob = {
+  accountId: string;
+  localContactId: string;
+  hubspotContactId: string;
+};
+
 export async function registerWorkers() {
   await boss.work<ContactSyncJob>("sync-contacts", async ([job]) => {
     await syncContactsForAccount(job.data.accountId);
+  });
+
+  await boss.work<ContactNotesSyncJob>("sync-contact-notes", async ([job]) => {
+    await syncNotesForContact(
+      job.data.accountId,
+      job.data.localContactId,
+      job.data.hubspotContactId
+    );
   });
 
   await boss.work<NoteSyncJob>("sync-note", async ([job]) => {
@@ -36,7 +50,7 @@ async function syncContactsForAccount(accountId: string) {
 
     for (const hubspotContact of page.results) {
       const localContact = await saveContact(accountId, hubspotContact.id, hubspotContact.properties);
-      await syncNotesForContact(account, localContact.id, hubspotContact.id);
+      await enqueueContactNotesSync(accountId, localContact.id, hubspotContact.id);
     }
 
     after = page.paging?.next?.after ?? null;
@@ -80,10 +94,13 @@ async function saveContact(
 }
 
 async function syncNotesForContact(
-  account: HubspotAccount,
+  accountId: string,
   localContactId: string,
   hubspotContactId: string
 ) {
+  const account = await prisma.hubspotAccount.findUnique({ where: { id: accountId } });
+  if (!account) return;
+
   const hubspotNotes = await fetchContactNotes(account, hubspotContactId);
 
   for (const note of hubspotNotes) {
