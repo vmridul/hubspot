@@ -1,3 +1,7 @@
+## Deployments
+- Frontend: https://hubspot-rho.vercel.app
+- Backend: https://hubspot-aw6a.onrender.com
+
 ## Stack
 
 - Next.js frontend
@@ -46,10 +50,10 @@ Backend needs:
 ```txt
 DATABASE_URL="postgresql://..."
 DIRECT_URL="postgresql://..."
-FRONTEND_URL="http://localhost:3000"
+FRONTEND_URL="..."
 HUBSPOT_CLIENT_ID="..."
 HUBSPOT_CLIENT_SECRET="..."
-HUBSPOT_REDIRECT_URI="http://localhost:4000/api/hubspot/oauth/callback"
+HUBSPOT_REDIRECT_URI="{backend url}/api/hubspot/oauth/callback"
 TOKEN_ENCRYPTION_KEY="use-a-long-random-secret"
 PORT="4000"
 ```
@@ -57,7 +61,7 @@ PORT="4000"
 Frontend needs:
 
 ```txt
-NEXT_PUBLIC_API_URL="http://localhost:4000"
+NEXT_PUBLIC_API_URL="backend url"
 ```
 
 ## HubSpot Setup
@@ -65,7 +69,7 @@ NEXT_PUBLIC_API_URL="http://localhost:4000"
 Create a HubSpot app and add this redirect URL:
 
 ```txt
-http://localhost:4000/api/hubspot/oauth/callback
+{backend url}/api/hubspot/oauth/callback
 ```
 
 Required scopes:
