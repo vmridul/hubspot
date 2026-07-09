@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum NoteStatus {
+  pending
+  synced
+  failed
+}
+
+model HubspotAccount {
+  id                    String     @id @default(cuid())
+  hubId                 String?
+  accessTokenEncrypted  String
+  refreshTokenEncrypted String
+  expiresAt             DateTime
+  connected             Boolean    @default(true)
+  syncCursor            String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  contacts Contact[]
+
+  @@map("hubspot_accounts")
+}
+
+model Contact {
+  id                String         @id @default(cuid())
+  hubspotAccountId  String
+  hubspotContactId  String
+  email             String?
+  firstName         String?
+  lastName          String?
+  phone             String?
+  company           String?
+  rawProperties     Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  hubspotAccount HubspotAccount @relation(fields: [hubspotAccountId], references: [id], onDelete: Cascade)
+  notes          Note[]
+
+  @@unique([hubspotAccountId, hubspotContactId])
+  @@index([email])
+  @@map("contacts")
+}
+
+model Note {
+  id            String     @id @default(cuid())
+  contactId     String
+  body          String
+  status        NoteStatus @default(pending)
+  hubspotNoteId String?
+  syncError     String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, hubspotNoteId])
+  @@index([contactId])
+  @@map("notes")
+}

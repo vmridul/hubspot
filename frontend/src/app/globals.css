@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: oklch(0.18 0.012 45);
+  --card: #ffffff;
+  --card-foreground: oklch(0.18 0.012 45);
+  --muted: oklch(0.95 0.006 45);
+  --muted-foreground: oklch(0.45 0.012 45);
+  --border: oklch(0.88 0.008 45);
+  --input: oklch(0.88 0.008 45);
+  --primary: #f55500;
+  --primary-foreground: oklch(0.99 0.004 45);
+  --secondary: oklch(0.95 0.018 55);
+  --secondary-foreground: oklch(0.24 0.03 45);
+  --destructive: oklch(0.55 0.19 24);
+  --destructive-foreground: oklch(0.98 0.006 45);
+  --ring: #f55500;
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-ring: var(--ring);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
