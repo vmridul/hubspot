@@ -16,7 +16,7 @@ enum NoteStatus {
 
 model HubspotAccount {
   id                    String     @id @default(cuid())
-  hubId                 String?
+  hubId                 String?    @unique
   accessTokenEncrypted  String
   refreshTokenEncrypted String
   expiresAt             DateTime

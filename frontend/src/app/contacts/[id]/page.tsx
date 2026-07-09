@@ -61,8 +61,6 @@ export default function ContactDetail({ params }: PageProps) {
   useEffect(() => {
     if (!contactId) return;
     load(contactId);
-    const timer = window.setInterval(() => load(contactId), 6000);
-    return () => window.clearInterval(timer);
   }, [contactId]);
 
   async function submitNote(event: FormEvent<HTMLFormElement>) {

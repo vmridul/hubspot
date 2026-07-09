@@ -88,14 +88,29 @@ export async function exchangeCodeForAccount(code: string) {
     }),
   );
 
-  return prisma.hubspotAccount.create({
-    data: {
-      hubId: token.hub_id ? String(token.hub_id) : null,
-      accessTokenEncrypted: encrypt(token.access_token),
-      refreshTokenEncrypted: encrypt(token.refresh_token),
-      expiresAt: new Date(Date.now() + token.expires_in * 1000),
-      connected: true,
+  const accountData = {
+    accessTokenEncrypted: encrypt(token.access_token),
+    refreshTokenEncrypted: encrypt(token.refresh_token),
+    expiresAt: new Date(Date.now() + token.expires_in * 1000),
+    connected: true,
+  };
+
+  if (!token.hub_id) {
+    return prisma.hubspotAccount.create({
+      data: {
+        ...accountData,
+        hubId: null,
+      },
+    });
+  }
+
+  return prisma.hubspotAccount.upsert({
+    where: { hubId: String(token.hub_id) },
+    create: {
+      ...accountData,
+      hubId: String(token.hub_id),
     },
+    update: accountData,
   });
 }
 
